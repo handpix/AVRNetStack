@@ -12,4 +12,4 @@ Project Goals
 Memory Footprint
 |  Date       | Comments |  Ram  |     Flash  |   Eth |  Arp |  DHCP | ICMP |  TCP |   UDP |  IPR |  Tests |
 |-------------|-------------------------------------|-------|----------|-----|-----|------|------|-----|-----|-----|------|
- 12/16/2015   | Packet RX handler moved it Int25    |  1535 |     4340 |  x  |  x  |      |   x  |  -  |     |  x  |    0 |
+| 12/16/2015  | Packet RX handler moved it Int25    |  1535 |     4340 |  x  |  x  |      |   x  |    |     |  x  |    0 |
