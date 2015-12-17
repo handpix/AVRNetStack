@@ -6,10 +6,10 @@ Project Goals
 * Full Featured TCP (support retransmit, etc)
 * Network stack with ICMP, ARP, etc
 * DHCP Support
-* Minimum Footprint
+* Minimum Memory Footprint
 
 
-Memory Footprint
+
 |  Date       | Comments |  Ram  |     Flash  |   Eth |  Arp |  DHCP | ICMP |  TCP |   UDP |  IPR |  Tests |
 |-------------|-------------------------------------|-------|----------|-----|-----|------|------|-----|-----|-----|------|
 | 12/16/2015  | Packet RX handler moved it Int25    |  1535 |     4340 |  x  |  x  |      |   x  |    |     |  x  |    0 |
