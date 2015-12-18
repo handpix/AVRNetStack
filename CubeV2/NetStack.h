@@ -9,6 +9,14 @@
 #ifndef NETSTACK_H_
 #define NETSTACK_H_
 
+// These are settings that the user can change
+
+#define MAXPACKET	1500
+
+extern uint16_t embrionicPort;
+extern uint8_t buf[];
+
+
 extern uint8_t macaddr[] ;
 extern uint8_t bcast[] ;
 extern uint8_t ipaddr[] ;
@@ -23,6 +31,9 @@ extern uint8_t dstmac[] ;
 
 #define  IsMAC(MAC1, MAC2)			(MAC1[0] == MAC2[0] && MAC1[1] == MAC2[1] && MAC1[2] == MAC2[2] && MAC1[3] == MAC2[3] && MAC1[4] == MAC2[4] && MAC1[5] == MAC2[5])
 #define  IsIP(IP1, IP2)				(IP1[0] == IP2[0] && IP1[1] == IP2[1] && IP1[2] == IP2[2] && IP1[3] == IP2[3])
+
+#define sbi(port,bit) (port) |= (1 << (bit))
+#define cbi(port, bit) (port) &= ~(1 << (bit))
 
 // Define our Ethernet Type fields
 #define EthernetTypeARP 0x0608
@@ -88,6 +99,7 @@ PktIP *IPBuildPacket(PktEthernet *eth, uint8_t *dstIp, uint8_t protocol);
 void ProcessPacket_IP(uint16_t len, PktEthernet *eth, PktIP *ip);
 #pragma endregion IP
 
+#pragma region ICMP
 
 typedef struct PktICMP
 {
@@ -97,6 +109,22 @@ typedef struct PktICMP
 	uint8_t data[1500];
 } PktICMP;
 
+void ProcessPacket_ICMP(uint16_t len, PktEthernet *eth, PktIP *ip, PktICMP *icmp);
+
+#pragma endregion ICMP
+
+typedef struct PktUDP
+{
+	uint16_t SrcPort;
+	uint16_t DstPort;
+	uint16_t Length;
+	uint16_t Checksum;
+	uint8_t data[1500];
+} PktUDP;
+
+
+#pragma region TCP
+
 typedef struct PktTCPPseudoHeader
 {
 	uint8_t SrcIp[4];
@@ -105,6 +133,8 @@ typedef struct PktTCPPseudoHeader
 	uint8_t Protocol;
 	uint16_t Length;
 } PktTCPPseudoHeader;
+
+
 
 typedef struct PktTCP
 {
@@ -136,13 +166,14 @@ typedef struct PktTCP
 
 enum TCPFiniteStates {
 	CLOSED,
-	SYNSENT,
+	ACTIVEOPEN,
 	ESTABLISHED,
 	CLOSEWAIT
 };
 
+
 typedef struct TransmissionControlBlock {
-	uint8_t DstIp[4];
+	uint8_t RemoteIp[4];
 	uint16_t SrcPort;
 	uint16_t DstPort;
 	uint32_t Seq;
@@ -150,7 +181,15 @@ typedef struct TransmissionControlBlock {
 	uint8_t FiniteState;
 } TransmissionControlBlock;
 
-uint16_t checksum(uint8_t *buf, uint16_t len);
-uint16_t checksumTCP(uint8_t *buf, uint16_t len, uint8_t *pseudoHeader);
+void ProcessPacket_TCP(uint16_t len, PktEthernet *eth, PktIP *ip, PktTCP *tcp);
+TransmissionControlBlock *TCPConnect(uint8_t *dstIp, uint16_t dstPort);
+
+#pragma endregion TCP
+
+#pragma region Utilities
+
+uint16_t checksum(uint8_t *buf, uint16_t len, uint8_t *pseudoHeader);
+
+#pragma endregion Utilities
 
 #endif /* NETSTACK_H_ */

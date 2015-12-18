@@ -1,5 +1,17 @@
+#include <avr/io.h>
 #include <stdlib.h>
 #include "LinkedList.h"
+
+uint8_t depth(node *list)
+{
+	uint8_t ret = 0;
+	while(list->next!=NULL)
+	{
+		ret ++;
+		list = list -> next;
+	}
+	return ret;
+}
 
 void insert(node *list, void *data)
 {

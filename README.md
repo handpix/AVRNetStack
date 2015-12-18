@@ -10,6 +10,7 @@ Project Goals
 
 
 
-|  Date       | Comments |  Ram  |     Flash  |   Eth |  Arp |  DHCP | ICMP |  TCP |   UDP |  IPR |  Tests |
+|  Date       | Comments |  Ram  |     Flash  |   Eth |  Arp |  DHCP | ICMP |  TCP |   UDP |  IP Routing | Syslog | Tests |
 |-------------|-------------------------------------|-------|----------|-----|-----|------|------|-----|-----|-----|------|
-| 12/16/2015  | Packet RX handler moved it Int25    |  1535 |     4340 |  x  |  x  |      |   x  |    |     |  x  |    0 |
+| 12/16/2015  | Packet RX handler moved it Int25    |  1535 |     4340 |  x  |  x  |      |   x  |    |   |    |    |    0 |
+| 12/17/2015  | Resolved TCB Search issue. Added simple UDP support and syslog. Smaller footprint. |  1539 |     4098 |  x  |  x  |      |   x  |    |   TX Only  |   |  X |    0 |
