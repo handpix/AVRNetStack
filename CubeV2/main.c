@@ -20,42 +20,7 @@
 
 void led_init( void ) ;
 
-
-uint8_t macaddr[] = {0x74,0xD3,0xDB,0x0A,0xD7,0x00};
-uint8_t bcast[] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
-uint8_t ipaddr[] = {192,168,43,100};
-uint8_t dstmac[] = {0x00,0x24,0x9B,0x08,0x4E,0xD3};
-
-
-
-
-
-//#define ARPCacheLength	16
-//ArpCacheEntry	ArpCache[16];
-//
-//void InsertArpCacheEntry(uint8_t *protocol, uint8_t *network)
-//{
-//for(int x=0; x<ARPCacheLength; x++)
-//{
-//if(IsIP(ArpCache[x].ProtocolAddress, protocol))
-//{
-//return;
-//}
-//}
-//// If we got here, we do not have this in our arp cache, so lets add it
-//uint8_t zeroip[] = {0,0,0,0};
-//for(int x=0; x<ARPCacheLength; x++)
-//{
-//if(IsIP(ArpCache[x].ProtocolAddress, zeroip))
-//{
-//copyIP(protocol, ArpCache[x].ProtocolAddress);
-//copyIP(network, ArpCache[x].PhysicalAddress);
-//return;
-//}
-//}
-//// No more room in the inn...
-//}
-
+#define SYSLOG
 
 void InitNetwork()
 {
@@ -65,10 +30,45 @@ void InitNetwork()
 	PCICR |= (1 << PCIE3); /* Activate interrupt on enabled PCINT7-0 */
 	sei();
 
+	
+	TCCR3B = (1<<CS22);// | (1<<CS20);
+	TCNT3 = 0;
+	TIMSK3 = (1<<TOIE3);
+	TIFR3 = (1<<TOV3);
 	enc28j60Init(&macaddr[0]);
 }
 
+ISR (TIMER3_OVF_vect){
+	PORTA ^= 1;
 
+	node *list = &ARPCache;
+	while(list->next != NULL)
+	{
+		ArpCacheEntry *ace = (ArpCacheEntry *)list->next->data;
+		if(ace != NULL)
+		{
+			ace->Age+=2;
+			if(ace->Age>=120)
+			{
+				free(ace);
+				list = deleteNode(&ARPCache, list);
+				if(list==NULL)
+				{
+					break;
+				}
+			}
+			#ifdef SYSLOG
+			else{
+				uint8_t innerBuffer[120];
+				memset(&innerBuffer, 0, sizeof(innerBuffer));
+				sprintf(&innerBuffer, "%02X%02X%02X%02X%02X%02X : %i.%i.%i.%i : %i : %is", ace->PhysicalAddress[0],ace->PhysicalAddress[1],ace->PhysicalAddress[2],ace->PhysicalAddress[3],ace->PhysicalAddress[4],ace->PhysicalAddress[5],ace->ProtocolAddress[0],ace->ProtocolAddress[1],ace->ProtocolAddress[2],ace->ProtocolAddress[3], ace->Resolved, ace->Age);
+				SendSyslog(FacilityUser, LevelDebug, &innerBuffer);
+			}
+			#endif
+		}
+		list = list -> next;
+	}
+}
 
 int main (void)
 {

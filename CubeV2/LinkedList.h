@@ -15,12 +15,12 @@ typedef struct Node
 {
 	void *data;
 	struct Node *next;
-}node;
+} node;
 
-void insert(node *pointer, void *data);
+node *insert(node *pointer, void *data);
 node *find(node *list, void *key, findCallback findFunc);
-void delete(node *pointer, void *key, findCallback findFunc);
-
+node *delete(node *pointer, void *key, findCallback findFunc);
+node *deleteNode(node *list, node *node);
 
 
 #endif /* LINKEDLIST_H_ */

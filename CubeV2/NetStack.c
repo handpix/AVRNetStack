@@ -11,13 +11,16 @@
 #include "LinkedList.h"
 #include "NetStack.h"
 
+uint8_t ipbcast[] = {255,255,255,255};
+uint8_t macaddr[] = {0x74,0xD3,0xDB,0x0A,0xD7,0x00};
+uint8_t bcast[]   = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+uint8_t ipaddr[]  = {192,168,43,100};
+uint8_t dstmac[]  = {0x00,0x24,0x9B,0x08,0x4E,0xD3};
+
 uint16_t embrionicPort = 1025;
 uint8_t buf[MAXPACKET];
-
-// Transmission Control Blocks
-node TCB;
-
-node ARPCache;
+node TCB;							// Transmission Control Blocks
+node ARPCache;						// Our ARP Cache
 
 #pragma region Ethernet
 void EthBuildFrame(PktEthernet *eth, uint8_t *dst)
@@ -48,6 +51,7 @@ void ProcessPacket_ARP(uint16_t len, PktEthernet *eth, PktArp *arp)
 		// We need to process only if they are asking for our IP
 		if(IsIP(arp->TargetIpAddress, ipaddr))
 		{
+			AddARPCache(arp->SenderMacAddress, arp->SenderIpAddress);
 			CopyEthernetSrcToDst(eth);
 			arp->ProtocolType = 0x0008;
 			arp->Opcode=0x0200;
@@ -59,8 +63,42 @@ void ProcessPacket_ARP(uint16_t len, PktEthernet *eth, PktArp *arp)
 			copyMac(macaddr, arp->SenderMacAddress);
 
 			enc28j60PacketSend(len, (uint8_t *)eth);
+
 			return;
 		}
+	}
+}
+
+int SearchARPByMAC(ArpCacheEntry *search, uint8_t *key)
+{
+	if(IsMAC(search->PhysicalAddress, key))
+	{
+		return 1;
+	}
+	return 0;
+}
+
+void AddARPCache(uint8_t *hw, uint8_t *proto)
+{
+	node *n = find(&ARPCache, hw, SearchARPByMAC);
+	if(n==NULL)
+	{
+		ArpCacheEntry *ace = malloc(sizeof(ArpCacheEntry));
+		if(ace==NULL)
+		{
+			SendSyslog(FacilityUser, LevelCritical, "malloc failed !arp entry");
+			return;
+		}
+		copyMac(hw, ace->PhysicalAddress);
+		copyIP(proto, ace->ProtocolAddress);
+		ace->Resolved=1;
+		ace->Age=0;
+		insert(&ARPCache, ace);
+	}
+	else{
+		ArpCacheEntry *ace = n->data;
+		ace->Resolved=1;
+		ace->Age=0;
 	}
 }
 #pragma endregion ARP
@@ -92,6 +130,8 @@ void ProcessPacket_IP(uint16_t len, PktEthernet *eth, PktIP *ip)
 	{
 		return;	// Nope, Outta here
 	}
+	AddARPCache(eth->SrcMacAddress, ip->SrcIp);
+
 	switch(ip->Protocol)
 	{
 		case 1:	// ICMP
@@ -132,15 +172,14 @@ void ProcessPacket_ICMP(uint16_t len, PktEthernet *eth, PktIP *ip, PktICMP *icmp
 
 #pragma region TCP
 
-void SendSyslog(char *str)
+void SendSyslog(uint8_t f, uint8_t level, uint8_t *str)
 {
-	uint8_t logPkt[1200];
-	memset(&logPkt, 0, 1200);
+	uint8_t pri = f * 8 + level;
+	uint8_t logPkt[1024];
+	memset(&logPkt, 0, 1024);
 
 	PktEthernet *logFrame = (PktEthernet*)&logPkt[0];
-	
-	uint8_t ipbcast={255,255,255,255};
-	
+
 	EthBuildFrame(logFrame, dstmac);
 	logFrame->type = EthernetTypeIP;
 	PktIP *ip = IPBuildPacket(logFrame, &ipbcast, 17);
@@ -149,26 +188,22 @@ void SendSyslog(char *str)
 	udpPkt->SrcPort = embrionicPort++;
 	udpPkt->DstPort = SWAP_2(514);
 	
-	strcpy(udpPkt->data, str);
-
-	udpPkt->Length = SWAP_2(strlen(str)+8);
+	sprintf(&udpPkt->data,"<%i>0 %i.%i.%i.%i SyslogGen %s",pri, ipaddr[0],ipaddr[1],ipaddr[2],ipaddr[3], str);
+	uint16_t len = strlen(&udpPkt->data);
+	
+	udpPkt->Length = SWAP_2(len+8);
 	udpPkt->Checksum=0;
-	ip->TotalLength = SWAP_2(1192);
+	ip->TotalLength = SWAP_2(len+8+20);
 	ip->Checksum = checksum((uint8_t*)ip, 20, NULL);
 
-	enc28j60PacketSend(1200, logPkt);
+	enc28j60PacketSend(len+8+20+16, logPkt);
 }
 
 int SearchTCBByReceivedTCPPacket(TransmissionControlBlock *search, PktIP *key)
 {
 	if(IsIP(key->SrcIp, search->RemoteIp))
 	{
-		//SendSyslog("SearchTCBByReceivedTCPPacket -> Ip Match");
 		PktTCP *tcp = (PktTCP*)&key->data[0];
-		uint8_t log[1200];
-		//sprintf(&log, "SearchTCBByReceivedTCPPacket -> SWAP_2(0x%04X) == 0x%04X && SWAP_2(0x%04X)==0x%04X", search->SrcPort, tcp->DstPort, search->DstPort, tcp->SrcPort);
-		//SendSyslog(&log);
-		//sprintf(&log, "SearchTCBByReceivedTCPPacket -> 0x%04X == 0x%04X && 0x%04X==0x%04X", SWAP_2(search->SrcPort), tcp->DstPort, SWAP_2(search->DstPort), tcp->SrcPort);
 		
 		if(SWAP_2(search->SrcPort) == tcp->DstPort && SWAP_2(search->DstPort)==tcp->SrcPort)
 		{
@@ -185,7 +220,7 @@ void ProcessPacket_TCP(uint16_t len, PktEthernet *eth, PktIP *ip, PktTCP *tcp)
 	{
 		// We have no connection in the connection table, return now
 		sbi(PORTA, 0);
-		while(1){};
+		//while(1){};
 		return;
 	}
 
@@ -194,7 +229,7 @@ void ProcessPacket_TCP(uint16_t len, PktEthernet *eth, PktIP *ip, PktTCP *tcp)
 	{
 		// We have no connection in the connection table, return now
 		sbi(PORTA, 1);
-		while(1){};
+		//while(1){};
 		return;
 	}
 
@@ -211,7 +246,7 @@ void ProcessPacket_TCP(uint16_t len, PktEthernet *eth, PktIP *ip, PktTCP *tcp)
 		break;
 	}
 
-	while(1){};
+	//while(1){};
 }
 
 // Open a TCP connection (as a client), this sets up our socket options, and
@@ -261,9 +296,7 @@ TransmissionControlBlock *TCPConnect(uint8_t *dstIp, uint16_t dstPort)
 
 #pragma endregion TCP
 
-
 #pragma region Utilities
-
 
 uint16_t checksum(uint8_t *buf, uint16_t len, uint8_t *pseudoHeader)
 {
@@ -273,7 +306,7 @@ uint16_t checksum(uint8_t *buf, uint16_t len, uint8_t *pseudoHeader)
 	{
 		uint8_t psl = 12;
 		while(psl >1){
-			sum += 0xFFFF & (((uint32_t)*pseudoHeader<<8)|*(pseudoHeader+1));
+			sum += 0xFFFF & ((*pseudoHeader<<8)|*(pseudoHeader+1));
 			pseudoHeader+=2;
 			psl-=2;
 		}

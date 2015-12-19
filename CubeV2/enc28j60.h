@@ -1,20 +1,20 @@
 /*****************************************************************************
- * vim:sw=8:ts=8:si:et
- *
- * Title      : Microchip ENC28J60 Ethernet Interface Driver
- * Author     : Pascal Stang 
- * Modified by: Guido Socher
- * Copyright:LGPL V2
- * See http://www.gnu.org/licenses/old-licenses/lgpl-2.0.html
- * Based on the enc28j60.c file from the AVRlib library by Pascal Stang.
- * For AVRlib See http://www.procyonengineering.com/
- * Used with explicit permission of Pascal Stang.
- *
- *This driver provides initialization and transmit/receive
- *functions for the Microchip ENC28J60 10Mb Ethernet Controller and PHY.
- *This chip is novel in that it is a full MAC+PHY interface all in a 28-pin
- *chip, using an SPI interface to the host processor.
- ****************************************************************************/
+* vim:sw=8:ts=8:si:et
+*
+* Title      : Microchip ENC28J60 Ethernet Interface Driver
+* Author     : Pascal Stang
+* Modified by: Guido Socher
+* Copyright:LGPL V2
+* See http://www.gnu.org/licenses/old-licenses/lgpl-2.0.html
+* Based on the enc28j60.c file from the AVRlib library by Pascal Stang.
+* For AVRlib See http://www.procyonengineering.com/
+* Used with explicit permission of Pascal Stang.
+*
+*This driver provides initialization and transmit/receive
+*functions for the Microchip ENC28J60 10Mb Ethernet Controller and PHY.
+*This chip is novel in that it is a full MAC+PHY interface all in a 28-pin
+*chip, using an SPI interface to the host processor.
+****************************************************************************/
 //@{
 
 
@@ -257,7 +257,7 @@
 //
 // max frame length which the conroller will accept:
 // (note: maximum ethernet frame length would be 1518)
-#define        MAX_FRAMELEN        1500       
+#define        MAX_FRAMELEN        1500
 
 
 // functions

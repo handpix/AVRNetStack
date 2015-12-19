@@ -16,11 +16,13 @@
 extern uint16_t embrionicPort;
 extern uint8_t buf[];
 
+extern node ARPCache;
 
-extern uint8_t macaddr[] ;
-extern uint8_t bcast[] ;
-extern uint8_t ipaddr[] ;
-extern uint8_t dstmac[] ;
+extern uint8_t macaddr[];
+extern uint8_t bcast[];
+extern uint8_t ipaddr[];
+extern uint8_t dstmac[];
+extern uint8_t ipbcast[];
 
 #define SWAP_2(x) ( (((x) & 0xff) << 8) | ((unsigned short)(x) >> 8) )
 
@@ -58,6 +60,8 @@ void CopyEthernetSrcToDst(PktEthernet *eth);
 typedef struct ArpCacheEntry {
 	uint8_t ProtocolAddress[4];
 	uint8_t PhysicalAddress[6];
+	uint8_t Resolved:1;
+	uint8_t Age:7;
 } ArpCacheEntry;
 
 typedef struct PktArp {
@@ -73,6 +77,7 @@ typedef struct PktArp {
 } PktArp;
 
 void ProcessPacket_ARP(uint16_t len, PktEthernet *eth, PktArp *arp);
+void AddARPCache(uint8_t *hw, uint8_t *proto);
 
 #pragma endregion ARP
 
@@ -189,7 +194,45 @@ TransmissionControlBlock *TCPConnect(uint8_t *dstIp, uint16_t dstPort);
 #pragma region Utilities
 
 uint16_t checksum(uint8_t *buf, uint16_t len, uint8_t *pseudoHeader);
+void SendSyslog(uint8_t f, uint8_t level, uint8_t *str);
 
 #pragma endregion Utilities
+
+
+#define		FacilityKernel				0
+#define		FacilityUser				1
+#define		FacilityMail				2
+#define		FacilitySystemDaemonsMail	3
+#define		FacilitySecurity			4
+#define		FacilitySyslogd				5
+#define		FacilityLinePrinter			6
+#define		FacilityNetworkNews			7
+
+//7             network news subsystem
+//8             UUCP subsystem
+//9             clock daemon
+//10            security/authorization messages
+//11            FTP daemon
+//12            NTP subsystem
+//13            log audit
+//14            log alert
+//15            clock daemon
+//16            local use 0  (local0)
+//17            local use 1  (local1)
+//18            local use 2  (local2)
+//19            local use 3  (local3)
+//20            local use 4  (local4)
+//21            local use 5  (local5)
+//22            local use 6  (local6)
+//23            local use 7  (local7)
+
+#define		LevelEmergency			0
+#define		LevelAlert				1
+#define		LevelCritical			2
+#define		LevelError				3
+#define		LevelWarning			4
+#define		LevelNotice				5
+#define		LevelInformational		6
+#define		LevelDebug				7
 
 #endif /* NETSTACK_H_ */

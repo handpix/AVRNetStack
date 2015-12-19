@@ -139,9 +139,6 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="DefaultFonts.c">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="enc28j60.c">
       <SubType>compile</SubType>
     </Compile>
