@@ -5,13 +5,28 @@
 *  Author: mhendricks
 */
 
+#include "LinkedList.h"
+#include <stdio.h>
 #include <string.h>
+#include <avr/pgmspace.h>
+
 #ifndef NETSTACK_H_
 #define NETSTACK_H_
 
 // These are settings that the user can change
+#define LoggingLevel	LevelInformational
 
 #define MAXPACKET	1500
+
+extern uint32_t RXEthernet;
+extern uint32_t RXIP;
+extern uint32_t RXICMP;
+extern uint32_t RXARP;
+
+extern uint32_t RXEthernetOctets;
+extern uint32_t RXIPOctets;
+extern uint32_t RXICMPOctets;
+extern uint32_t RXARPOctets;
 
 extern uint16_t embrionicPort;
 extern uint8_t buf[];
@@ -23,6 +38,7 @@ extern uint8_t bcast[];
 extern uint8_t ipaddr[];
 extern uint8_t dstmac[];
 extern uint8_t ipbcast[];
+
 
 #define SWAP_2(x) ( (((x) & 0xff) << 8) | ((unsigned short)(x) >> 8) )
 
@@ -176,7 +192,6 @@ enum TCPFiniteStates {
 	CLOSEWAIT
 };
 
-
 typedef struct TransmissionControlBlock {
 	uint8_t RemoteIp[4];
 	uint16_t SrcPort;
@@ -194,10 +209,9 @@ TransmissionControlBlock *TCPConnect(uint8_t *dstIp, uint16_t dstPort);
 #pragma region Utilities
 
 uint16_t checksum(uint8_t *buf, uint16_t len, uint8_t *pseudoHeader);
-void SendSyslog(uint8_t f, uint8_t level, uint8_t *str);
+void SendSyslog(uint8_t f, uint8_t level, const uint8_t *file, int16_t line, const uint8_t *str, ...);
 
 #pragma endregion Utilities
-
 
 #define		FacilityKernel				0
 #define		FacilityUser				1
@@ -226,6 +240,7 @@ void SendSyslog(uint8_t f, uint8_t level, uint8_t *str);
 //22            local use 6  (local6)
 //23            local use 7  (local7)
 
+#define		LevelNone				-1
 #define		LevelEmergency			0
 #define		LevelAlert				1
 #define		LevelCritical			2
@@ -234,5 +249,35 @@ void SendSyslog(uint8_t f, uint8_t level, uint8_t *str);
 #define		LevelNotice				5
 #define		LevelInformational		6
 #define		LevelDebug				7
+
+#define LogNotice(f, ...) SendSyslog(f, LevelNotice, PSTR(__FILE__), __LINE__ ,__VA_ARGS__)
+#define LogWarning(f, ...) SendSyslog(f, LevelWarning, PSTR(__FILE__), __LINE__ ,__VA_ARGS__)
+#define LogError(f, ...) SendSyslog(f, LevelError, PSTR(__FILE__), __LINE__ ,__VA_ARGS__)
+#define LogCritical(f, ...) SendSyslog(f, LevelCritical, PSTR(__FILE__), __LINE__ ,__VA_ARGS__)
+
+#if LoggingLevel >= LevelEmergency
+#define LogEmergency(f, ...) SendSyslog(f, LevelEmergency, PSTR(__FILE__), __LINE__ ,__VA_ARGS__)
+#else
+#define LogEmergency(f, ...)
+#endif
+
+#if LoggingLevel >= LevelAlert
+#define LogAlert(f, ...) SendSyslog(f, LevelAlert, PSTR(__FILE__), __LINE__ ,__VA_ARGS__)
+#else
+#define LogAlert(f, ...)
+#endif
+
+#if LoggingLevel >= LevelInformational
+#define LogInfo(f, ...) SendSyslog(f, LevelInformational, PSTR(__FILE__), __LINE__ ,__VA_ARGS__)
+#else
+#define LogInfo(f, ...)
+#endif
+
+#if LoggingLevel >= LevelDebug
+#define LogDebug(f, ...) SendSyslog(f, LevelDebug, PSTR(__FILE__), __LINE__, __VA_ARGS__)
+#else
+#define LogDebug(f, ...)
+#endif
+
 
 #endif /* NETSTACK_H_ */

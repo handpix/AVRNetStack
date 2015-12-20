@@ -17,6 +17,13 @@
 ****************************************************************************/
 //@{
 
+extern uint32_t volatile RXPkts;
+extern uint32_t volatile TXPkts;
+extern uint32_t volatile RXOctets;
+extern uint32_t volatile TXOctets;
+
+
+
 
 #ifndef ENC28J60_H
 #define ENC28J60_H
@@ -257,7 +264,7 @@
 //
 // max frame length which the conroller will accept:
 // (note: maximum ethernet frame length would be 1518)
-#define        MAX_FRAMELEN        1500
+#define        MAX_FRAMELEN        1530
 
 
 // functions

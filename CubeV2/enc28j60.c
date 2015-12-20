@@ -39,6 +39,11 @@ static int16_t gNextPacketPtr;
 
 #define waitspi() while(!(SPSR&(1<<SPIF)))
 
+uint32_t volatile RXPkts;
+uint32_t volatile TXPkts;
+uint32_t volatile RXOctets;
+uint32_t volatile TXOctets;
+
 
 uint8_t enc28j60ReadOp(uint8_t op, uint8_t address)
 {
@@ -325,6 +330,8 @@ void enc28j60PacketSend(uint16_t len, uint8_t* packet)
 	enc28j60WriteBuffer(len, packet);
 	// send the contents of the transmit buffer onto the network
 	enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_TXRTS);
+	TXPkts++;
+	TXOctets+=len;
 	PORTA &= ~(1<<3);
 }
 
@@ -398,5 +405,7 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t* packet)
 	}
 	// decrement the packet counter indicate we are done with this packet
 	enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
+	TXPkts++;
+	TXOctets+=len;
 	return(len);
 }

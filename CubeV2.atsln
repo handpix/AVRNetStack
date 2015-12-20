@@ -11,6 +11,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Readme", "Readme", "{1F6DF0
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Datasheets", "Datasheets", "{8AD4FD4A-35A9-4184-BBDD-325BCD1A661E}"
+	ProjectSection(SolutionItems) = preProject
+		Datasheets\Atmel-8272-8-bit-AVR-microcontroller-ATmega164A_PA-324A_PA-644A_PA-1284_P_datasheet.pdf = Datasheets\Atmel-8272-8-bit-AVR-microcontroller-ATmega164A_PA-324A_PA-644A_PA-1284_P_datasheet.pdf
+		Datasheets\ENC28J60.pdf = Datasheets\ENC28J60.pdf
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR

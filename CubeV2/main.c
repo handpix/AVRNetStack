@@ -20,8 +20,6 @@
 
 void led_init( void ) ;
 
-#define SYSLOG
-
 void InitNetwork()
 {
 	//memset(ArpCache, 0, sizeof(ArpCache));
@@ -38,7 +36,12 @@ void InitNetwork()
 	enc28j60Init(&macaddr[0]);
 }
 
+volatile uint32_t netTick = 0;
+
 ISR (TIMER3_OVF_vect){
+	netTick++;
+	LogInfo(FacilityUser, PSTR("Network Timers (Tick: %lu)"), netTick);
+
 	PORTA ^= 1;
 
 	node *list = &ARPCache;
@@ -47,31 +50,39 @@ ISR (TIMER3_OVF_vect){
 		ArpCacheEntry *ace = (ArpCacheEntry *)list->next->data;
 		if(ace != NULL)
 		{
+			LogDebug(FacilityUser, PSTR("%02X%02X%02X%02X%02X%02X : %i.%i.%i.%i : %i : %i s"), ace->PhysicalAddress[0],ace->PhysicalAddress[1],ace->PhysicalAddress[2],ace->PhysicalAddress[3],ace->PhysicalAddress[4],ace->PhysicalAddress[5],ace->ProtocolAddress[0],ace->ProtocolAddress[1],ace->ProtocolAddress[2],ace->ProtocolAddress[3], ace->Resolved, ace->Age);
+
 			ace->Age+=2;
 			if(ace->Age>=120)
 			{
 				free(ace);
 				list = deleteNode(&ARPCache, list);
+				LogDebug(FacilityUser, PSTR("Deleted Old Arp Entry"));
 				if(list==NULL)
 				{
 					break;
 				}
 			}
-			#ifdef SYSLOG
-			else{
-				uint8_t innerBuffer[120];
-				memset(&innerBuffer, 0, sizeof(innerBuffer));
-				sprintf(&innerBuffer, "%02X%02X%02X%02X%02X%02X : %i.%i.%i.%i : %i : %is", ace->PhysicalAddress[0],ace->PhysicalAddress[1],ace->PhysicalAddress[2],ace->PhysicalAddress[3],ace->PhysicalAddress[4],ace->PhysicalAddress[5],ace->ProtocolAddress[0],ace->ProtocolAddress[1],ace->ProtocolAddress[2],ace->ProtocolAddress[3], ace->Resolved, ace->Age);
-				SendSyslog(FacilityUser, LevelDebug, &innerBuffer);
-			}
-			#endif
 		}
 		list = list -> next;
+	}
+
+	if(netTick%10==0)
+	{
+		LogInfo(FacilityUser, PSTR("Frames RX:%lu (%lu b) TX:%lu (%lu b)\n ARP RX:%lu (%lu b)\n IP RX:%lu (%lu b)\n ICMP RX:%lu (%lu b)"),
+		RXPkts,RXOctets,
+		TXPkts, TXOctets,
+		RXARP, RXARPOctets,
+		RXIP, RXIPOctets,
+		RXICMP, RXICMPOctets);
 	}
 }
 
 int main (void)
 {
+	// Shutdown some perripherials we dont need
+	PRR0 = (1<<PRTWI) | (1<<PRADC);
+
 	led_init();
 
 	_delay_ms(100);

@@ -4,8 +4,9 @@
 * Created: 12/13/2015 6:36:00 PM
 *  Author: mhendricks
 */
+#include <stdarg.h>
 #include <avr/io.h>
-#include <avr/interrupt.h>
+#include <avr/interrupt.h>#include <avr/pgmspace.h>
 #include <stdlib.h>
 #include "enc28j60.h"
 #include "LinkedList.h"
@@ -16,6 +17,16 @@ uint8_t macaddr[] = {0x74,0xD3,0xDB,0x0A,0xD7,0x00};
 uint8_t bcast[]   = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 uint8_t ipaddr[]  = {192,168,43,100};
 uint8_t dstmac[]  = {0x00,0x24,0x9B,0x08,0x4E,0xD3};
+
+uint32_t RXEthernet = 0;
+uint32_t RXIP = 0;
+uint32_t RXICMP = 0;
+uint32_t RXARP = 0;
+
+uint32_t RXEthernetOctets = 0;
+uint32_t RXIPOctets = 0;
+uint32_t RXICMPOctets = 0;
+uint32_t RXARPOctets = 0;
 
 uint16_t embrionicPort = 1025;
 uint8_t buf[MAXPACKET];
@@ -39,6 +50,8 @@ void CopyEthernetSrcToDst(PktEthernet *eth)
 #pragma region ARP
 void ProcessPacket_ARP(uint16_t len, PktEthernet *eth, PktArp *arp)
 {
+	RXARP++;
+	RXARPOctets+=len;
 	// Ethernet -> IP, we do not handle other protocols
 	if(arp->HardwareType != 0x0100 || arp->ProtocolType!=0x0008)
 	{
@@ -51,7 +64,7 @@ void ProcessPacket_ARP(uint16_t len, PktEthernet *eth, PktArp *arp)
 		// We need to process only if they are asking for our IP
 		if(IsIP(arp->TargetIpAddress, ipaddr))
 		{
-			AddARPCache(arp->SenderMacAddress, arp->SenderIpAddress);
+			AddARPCache(&arp->SenderMacAddress, &arp->SenderIpAddress);
 			CopyEthernetSrcToDst(eth);
 			arp->ProtocolType = 0x0008;
 			arp->Opcode=0x0200;
@@ -86,7 +99,7 @@ void AddARPCache(uint8_t *hw, uint8_t *proto)
 		ArpCacheEntry *ace = malloc(sizeof(ArpCacheEntry));
 		if(ace==NULL)
 		{
-			SendSyslog(FacilityUser, LevelCritical, "malloc failed !arp entry");
+			LogCritical(FacilityUser, "malloc failed !arp entry");
 			return;
 		}
 		copyMac(hw, ace->PhysicalAddress);
@@ -125,12 +138,13 @@ PktIP *IPBuildPacket(PktEthernet *eth, uint8_t *dstIp, uint8_t protocol)
 
 void ProcessPacket_IP(uint16_t len, PktEthernet *eth, PktIP *ip)
 {
+	RXIP++;
+	RXIPOctets+=len;
 	// We need to determine if this is for us
 	if(!IsIP(ipaddr, ip->DstIp))
 	{
 		return;	// Nope, Outta here
 	}
-	AddARPCache(eth->SrcMacAddress, ip->SrcIp);
 
 	switch(ip->Protocol)
 	{
@@ -149,6 +163,8 @@ void ProcessPacket_IP(uint16_t len, PktEthernet *eth, PktIP *ip)
 
 void ProcessPacket_ICMP(uint16_t len, PktEthernet *eth, PktIP *ip, PktICMP *icmp)
 {
+	RXICMP++;
+	RXICMPOctets+=len;
 	if(icmp->Type==8)	// Echo Request
 	{
 		CopyEthernetSrcToDst(eth);
@@ -172,7 +188,7 @@ void ProcessPacket_ICMP(uint16_t len, PktEthernet *eth, PktIP *ip, PktICMP *icmp
 
 #pragma region TCP
 
-void SendSyslog(uint8_t f, uint8_t level, uint8_t *str)
+void SendSyslog(uint8_t f, uint8_t level, const uint8_t *file, int16_t line, const uint8_t *fmt, ...)
 {
 	uint8_t pri = f * 8 + level;
 	uint8_t logPkt[1024];
@@ -180,16 +196,25 @@ void SendSyslog(uint8_t f, uint8_t level, uint8_t *str)
 
 	PktEthernet *logFrame = (PktEthernet*)&logPkt[0];
 
+	uint8_t syslogaddr[]  = {192,168,43,150};
+
 	EthBuildFrame(logFrame, dstmac);
 	logFrame->type = EthernetTypeIP;
-	PktIP *ip = IPBuildPacket(logFrame, &ipbcast, 17);
+	PktIP *ip = IPBuildPacket(logFrame, &syslogaddr, 17);
 	
 	PktUDP *udpPkt = (PktUDP*)&ip->data[0];
 	udpPkt->SrcPort = embrionicPort++;
 	udpPkt->DstPort = SWAP_2(514);
+
+	uint8_t *ptr = &udpPkt->data[0];
 	
-	sprintf(&udpPkt->data,"<%i>0 %i.%i.%i.%i SyslogGen %s",pri, ipaddr[0],ipaddr[1],ipaddr[2],ipaddr[3], str);
-	uint16_t len = strlen(&udpPkt->data);
+	ptr+= sprintf(udpPkt->data, "<%i>0 %i.%i.%i.%i %S:%i ", pri, ipaddr[0],ipaddr[1],ipaddr[2],ipaddr[3], file, line);	// TODO: This costs 2K for sprintf, look at using strcat or simular
+	va_list ap;
+	va_start(ap, fmt);
+	ptr+= vsprintf_P(ptr, fmt, ap);	// TODO: This costs 2K for sprintf, look at using strcat or simular
+	va_end(ap);
+
+	uint16_t len = ptr-(&udpPkt->data[0]);
 	
 	udpPkt->Length = SWAP_2(len+8);
 	udpPkt->Checksum=0;
@@ -224,12 +249,12 @@ void ProcessPacket_TCP(uint16_t len, PktEthernet *eth, PktIP *ip, PktTCP *tcp)
 		return;
 	}
 
+
 	TransmissionControlBlock *sockOpt = tcbNode->data;
 	if(sockOpt==NULL)
 	{
 		// We have no connection in the connection table, return now
 		sbi(PORTA, 1);
-		//while(1){};
 		return;
 	}
 
@@ -245,8 +270,6 @@ void ProcessPacket_TCP(uint16_t len, PktEthernet *eth, PktIP *ip, PktTCP *tcp)
 		sbi(PORTA, 0);
 		break;
 	}
-
-	//while(1){};
 }
 
 // Open a TCP connection (as a client), this sets up our socket options, and
@@ -255,7 +278,7 @@ TransmissionControlBlock *TCPConnect(uint8_t *dstIp, uint16_t dstPort)
 	uint8_t synPkt[60];
 	memset(&synPkt, 0, 60);
 	TransmissionControlBlock *sockOpt = malloc(sizeof(TransmissionControlBlock));
-	sockOpt->SrcPort = embrionicPort++;	// TODO: Need to add randomness
+	sockOpt->SrcPort = embrionicPort++;
 	sockOpt->DstPort = dstPort;
 	sockOpt->Seq = 0;	// TODO: Need to add randomness
 	sockOpt->Ack = 0;	// TODO: Need to add randomness
@@ -335,7 +358,6 @@ uint16_t checksum(uint8_t *buf, uint16_t len, uint8_t *pseudoHeader)
 
 #pragma endregion Utilities
 
-#define waitspi() while(!(SPSR&(1<<SPIF)))
 
 ISR (PCINT3_vect){
 	// Trigger on falling edge only
