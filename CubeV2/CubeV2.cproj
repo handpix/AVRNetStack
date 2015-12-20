@@ -139,6 +139,12 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="ByteSwap.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="ByteSwap.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="CPUTime.c">
       <SubType>compile</SubType>
     </Compile>

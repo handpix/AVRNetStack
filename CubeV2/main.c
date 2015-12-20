@@ -104,6 +104,8 @@ int main (void)
 	uint8_t dstIp[4] = {192,168,43,150};
 	TransmissionControlBlock *clientSocket = TCPConnect(&dstIp[0], 80);
 
+	TCPSend(clientSocket, "GET / HTTP/1.1\r\nHOST: 127.0.0.1\r\n\r\n", strlen("GET / HTTP/1.1\r\nHOST: 127.0.0.1\r\n\r\n"));
+
 	while(1)
 	{
 	}

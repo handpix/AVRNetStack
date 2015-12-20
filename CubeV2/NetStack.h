@@ -194,15 +194,22 @@ typedef struct TransmissionControlBlock {
 	uint8_t RemoteIp[4];
 	uint16_t SrcPort;
 	uint16_t DstPort;
-	uint32_t RxSeq;
-	uint32_t RxAck;
-	uint32_t TxSeq;
-	uint32_t TxAck;
+	
+	uint32_t OurSeq;
+	uint32_t TheirSeq;
+
+	uint8_t *receiveWindow;
+	uint8_t *sendWindow;
+	uint16_t receiveLen;
+	uint16_t sendLen;
+	uint16_t sentLen;
+
 	uint8_t FiniteState;
 } TransmissionControlBlock;
 
 void ProcessPacket_TCP(uint16_t len, PktEthernet *eth, PktIP *ip, PktTCP *tcp);
 TransmissionControlBlock *TCPConnect(uint8_t *dstIp, uint16_t dstPort);
+void TCPSend(TransmissionControlBlock *sockOpt, uint8_t *data, uint16_t len);
 
 #pragma endregion TCP
 
