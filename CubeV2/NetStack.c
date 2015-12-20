@@ -280,8 +280,10 @@ TransmissionControlBlock *TCPConnect(uint8_t *dstIp, uint16_t dstPort)
 	TransmissionControlBlock *sockOpt = malloc(sizeof(TransmissionControlBlock));
 	sockOpt->SrcPort = embrionicPort++;
 	sockOpt->DstPort = dstPort;
-	sockOpt->Seq = 0;	// TODO: Need to add randomness
-	sockOpt->Ack = 0;	// TODO: Need to add randomness
+	sockOpt->TxSeq = 0;	// TODO: Need to add randomness
+	sockOpt->TxAck = 0;	// TODO: Need to add randomness
+	sockOpt->RxSeq = 0;	// TODO: Need to add randomness
+	sockOpt->RxAck = 0;	// TODO: Need to add randomness
 	copyIP(dstIp, sockOpt->RemoteIp);
 	sockOpt->FiniteState = CLOSED;
 
@@ -296,8 +298,8 @@ TransmissionControlBlock *TCPConnect(uint8_t *dstIp, uint16_t dstPort)
 	
 	tcp->SrcPort = SWAP_2(sockOpt->SrcPort);
 	tcp->DstPort = SWAP_2(sockOpt->DstPort);
-	tcp->Seq = sockOpt->Seq;
-	tcp->Ack = sockOpt->Ack;
+	tcp->Seq = sockOpt->TxSeq;
+	tcp->Ack = sockOpt->TxAck;
 	tcp->DataOffset = 5;
 	tcp->FlagSYN = 1;
 	tcp->WindowSize = SWAP_2(1300);

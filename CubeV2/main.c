@@ -47,17 +47,18 @@ ISR (TIMER3_OVF_vect){
 	node *list = &ARPCache;
 	while(list->next != NULL)
 	{
+		LogDebug(FacilityUser, PSTR("Reaping ARP Cache"));
 		ArpCacheEntry *ace = (ArpCacheEntry *)list->next->data;
 		if(ace != NULL)
 		{
-			LogDebug(FacilityUser, PSTR("%02X%02X%02X%02X%02X%02X : %i.%i.%i.%i : %i : %i s"), ace->PhysicalAddress[0],ace->PhysicalAddress[1],ace->PhysicalAddress[2],ace->PhysicalAddress[3],ace->PhysicalAddress[4],ace->PhysicalAddress[5],ace->ProtocolAddress[0],ace->ProtocolAddress[1],ace->ProtocolAddress[2],ace->ProtocolAddress[3], ace->Resolved, ace->Age);
+			LogDebug(FacilityUser, PSTR("%02X%02X%02X%02X%02X%02X : %i.%i.%i.%i : %i : %is"), ace->PhysicalAddress[0],ace->PhysicalAddress[1],ace->PhysicalAddress[2],ace->PhysicalAddress[3],ace->PhysicalAddress[4],ace->PhysicalAddress[5],ace->ProtocolAddress[0],ace->ProtocolAddress[1],ace->ProtocolAddress[2],ace->ProtocolAddress[3], ace->Resolved, ace->Age);
 
 			ace->Age+=2;
 			if(ace->Age>=120)
 			{
 				free(ace);
 				list = deleteNode(&ARPCache, list);
-				LogDebug(FacilityUser, PSTR("Deleted Old Arp Entry"));
+				LogDebug(FacilityUser, PSTR("Deleted Old ARP Entry"));
 				if(list==NULL)
 				{
 					break;

@@ -14,7 +14,7 @@
 #define NETSTACK_H_
 
 // These are settings that the user can change
-#define LoggingLevel	LevelInformational
+#define LoggingLevel	LevelDebug
 
 #define MAXPACKET	1500
 
@@ -155,8 +155,6 @@ typedef struct PktTCPPseudoHeader
 	uint16_t Length;
 } PktTCPPseudoHeader;
 
-
-
 typedef struct PktTCP
 {
 	uint16_t SrcPort;
@@ -196,8 +194,10 @@ typedef struct TransmissionControlBlock {
 	uint8_t RemoteIp[4];
 	uint16_t SrcPort;
 	uint16_t DstPort;
-	uint32_t Seq;
-	uint32_t Ack;
+	uint32_t RxSeq;
+	uint32_t RxAck;
+	uint32_t TxSeq;
+	uint32_t TxAck;
 	uint8_t FiniteState;
 } TransmissionControlBlock;
 

@@ -405,7 +405,7 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t* packet)
 	}
 	// decrement the packet counter indicate we are done with this packet
 	enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
-	TXPkts++;
-	TXOctets+=len;
+	RXPkts++;
+	RXOctets+=len;
 	return(len);
 }
