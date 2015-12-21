@@ -17,17 +17,16 @@
 ****************************************************************************/
 //@{
 
-extern uint32_t volatile RXPkts;
-extern uint32_t volatile TXPkts;
-extern uint32_t volatile RXOctets;
-extern uint32_t volatile TXOctets;
-
-
-
-
 #ifndef ENC28J60_H
 #define ENC28J60_H
 #include <inttypes.h>
+#include "CPUTime.h"
+
+extern volatile uint32_t RXPkts;
+extern volatile uint32_t TXPkts;
+extern volatile uint32_t RXOctets;
+extern volatile uint32_t TXOctets;
+extern volatile TickStats TXTicks;
 
 // ENC28J60 Control Registers
 // Control register definitions are a combination of address,

@@ -18,9 +18,16 @@
 #include <avr/io.h>
 #include "enc28j60.h"
 #include "util/delay.h"
+#include "cputime.h"
+#include "util/atomic.h"
+
+volatile TickStats TXTicks;
 
 static uint8_t Enc28j60Bank;
 static int16_t gNextPacketPtr;
+
+
+
 // SPI interface
 #define ENC28J60_CONTROL_PORT   PORTB
 #define ENC28J60_CONTROL_DDR    DDRB
@@ -43,7 +50,6 @@ uint32_t volatile RXPkts;
 uint32_t volatile TXPkts;
 uint32_t volatile RXOctets;
 uint32_t volatile TXOctets;
-
 
 uint8_t enc28j60ReadOp(uint8_t op, uint8_t address)
 {
@@ -181,6 +187,9 @@ void enc28j60clkout(uint8_t clk)
 
 void enc28j60Init(uint8_t* macaddr)
 {
+	TXTicks.Invokes=0;
+	TXTicks.Ticks=0;
+	
 	// initialize I/O
 	// ss as output:
 	ENC28J60_CS_DDR |= 1<<ENC28J60_CS_PIN;
@@ -307,6 +316,11 @@ uint8_t enc28j60linkup(void)
 
 void enc28j60PacketSend(uint16_t len, uint8_t* packet)
 {
+	uint32_t start;
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	{
+		start = GetTicks();
+	}
 	PORTA |= (1<<3);
 	// Check no transmit in progress
 	while (enc28j60ReadOp(ENC28J60_READ_CTRL_REG, ECON1) & ECON1_TXRTS)
@@ -333,6 +347,13 @@ void enc28j60PacketSend(uint16_t len, uint8_t* packet)
 	TXPkts++;
 	TXOctets+=len;
 	PORTA &= ~(1<<3);
+
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	{
+		uint32_t end = GetTicks();
+		TXTicks.Ticks += (end - start);
+		TXTicks.Invokes++;
+	}
 }
 
 // just probe if there might be a packet

@@ -6,8 +6,11 @@
 */
 #include <stdarg.h>
 #include <avr/io.h>
-#include <avr/interrupt.h>#include <avr/pgmspace.h>
+#include <avr/interrupt.h>
+#include <avr/pgmspace.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <avr/eeprom.h>
 #include "ByteSwap.h"
 #include "enc28j60.h"
 #include "LinkedList.h"
@@ -29,7 +32,7 @@ uint32_t RXIPOctets = 0;
 uint32_t RXICMPOctets = 0;
 uint32_t RXARPOctets = 0;
 
-uint16_t embrionicPort = 1032;
+uint16_t embrionicPort = 1024;
 uint8_t buf[MAXPACKET];
 node TCB;							// Transmission Control Blocks
 node ARPCache;						// Our ARP Cache
@@ -100,7 +103,7 @@ void AddARPCache(uint8_t *hw, uint8_t *proto)
 		ArpCacheEntry *ace = malloc(sizeof(ArpCacheEntry));
 		if(ace==NULL)
 		{
-			LogCritical(FacilityUser, "malloc failed !arp entry");
+			LogCritical(FacilityUser, PSTR("malloc failed !arp entry"));
 			return;
 		}
 		copyMac(hw, ace->PhysicalAddress);
@@ -188,7 +191,7 @@ void ProcessPacket_ICMP(uint16_t len, PktEthernet *eth, PktIP *ip, PktICMP *icmp
 #pragma endregion ICMP
 
 #pragma region SYSLOG
-void SendSyslog(uint8_t f, uint8_t level, const uint8_t *file, int16_t line, const uint8_t *fmt, ...)
+void SendSyslog(uint8_t f, uint8_t level, const char *file, int16_t line, const char *fmt, ...)
 {
 	uint8_t pri = f * 8 + level;
 	uint8_t logPkt[1024];
@@ -208,10 +211,10 @@ void SendSyslog(uint8_t f, uint8_t level, const uint8_t *file, int16_t line, con
 
 	uint8_t *ptr = &udpPkt->data[0];
 	
-	ptr+= sprintf(udpPkt->data, "<%i>0 %i.%i.%i.%i %S:%i ", pri, ipaddr[0],ipaddr[1],ipaddr[2],ipaddr[3], file, line);	// TODO: This costs 2K for sprintf, look at using strcat or simular
+	ptr+= sprintf_P(udpPkt->data, PSTR("<%i>0 %i.%i.%i.%i %S:%i "), pri, ipaddr[0],ipaddr[1],ipaddr[2],ipaddr[3], file, line);
 	va_list ap;
 	va_start(ap, fmt);
-	ptr+= vsprintf_P(ptr, fmt, ap);	// TODO: This costs 2K for sprintf, look at using strcat or simular
+	ptr+= vsprintf_P(ptr, fmt, ap);
 	va_end(ap);
 
 	uint16_t len = ptr-(&udpPkt->data[0]);
@@ -257,7 +260,7 @@ http://www.rhyshaden.com/tcp.htm
 5.1 Three-way Handshake
 
 If a source host wishes to use an IP application such as active FTP for instance, it selects a port number which is greater than 1023 and connects to the destination station on port 21. The TCP connection is set up via three-way handshaking:
-* This begins with a SYN (Synchronise) segment (as indicated by the code bit) containing a 32-bit Sequence number A called the Initial Send Sequence (ISS) being chosen by, and sent from, host 1. This 32-bit sequence number A is the starting sequence number of the data in that packet and increments by 1 for every byte of data sent within the segment, i.e. there is a sequence number for each octet sent. The SYN segment also puts the value A+1 in the first octet of the data.
+* This begins with a SYN (Synchronize) segment (as indicated by the code bit) containing a 32-bit Sequence number A called the Initial Send Sequence (ISS) being chosen by, and sent from, host 1. This 32-bit sequence number A is the starting sequence number of the data in that packet and increments by 1 for every byte of data sent within the segment, i.e. there is a sequence number for each octet sent. The SYN segment also puts the value A+1 in the first octet of the data.
 * Host 2 receives the SYN with the Sequence number A and sends a SYN segment with its own totally independent ISS number B in the Sequence number field. In addition, it sends an increment on the Sequence number of the last received segment (i.e. A+x where x is the number of octets that make up the data in this segment) in its Acknowledgment field. This Acknowledgment number informs the recipient that its data was received at the other end and it expects the next segment of data bytes to be sent, to start at sequence number A+x. This stage is aften called the SYN-ACK. It is here that the MSS is agreed.
 * Host 1 receives this SYN-ACK segment and sends an ACK segment containing the next sequence number (B+y where y is the number of octets in this particular segment), this is called Forward Acknowledgement and is received by Host 2. The ACK segment is identified by the fact that the ACK field is set. Segments that are not acknowledged within a certain time span, are retransmitted.
 
@@ -277,7 +280,6 @@ void ProcessPacket_TCP(uint16_t len, PktEthernet *eth, PktIP *ip, PktTCP *tcp)
 		//while(1){};
 		return;
 	}
-
 
 	TransmissionControlBlock *sockOpt = tcbNode->data;
 	if(sockOpt==NULL)
@@ -303,10 +305,10 @@ void ProcessPacket_TCP(uint16_t len, PktEthernet *eth, PktIP *ip, PktTCP *tcp)
 		break;
 
 		case ACTIVEOPEN:
-		LogDebug(FacilityUser, PSTR("ActiveOpen: Processing Pkt"));
+		LogDebug(FacilityUser, PSTR("ActiveOpen:"));
 		if(tcp->FlagACK && tcp->FlagSYN)
 		{
-			LogDebug(FacilityUser, PSTR("SYNACK!"));
+			LogDebug(FacilityUser, PSTR("  ESTABLISHED"));
 			sockOpt->FiniteState = ESTABLISHED;
 			sockOpt->TheirSeq++;
 		}
@@ -317,6 +319,22 @@ void ProcessPacket_TCP(uint16_t len, PktEthernet *eth, PktIP *ip, PktTCP *tcp)
 
 	if(sockOpt->FiniteState == ESTABLISHED)
 	{
+		// TODO:
+		// Receive any data in payload
+		// Update seqence number (for ack)
+		// If we received an ACK, slide our window down
+		uint16_t rxdatalen = SWAP_2(ip->TotalLength) - (ip->HeaderLength * 4) - (tcp->DataOffset*4);
+		LogDebug(FacilityUser, PSTR(" TCPRX: rxdatalen: %u"), rxdatalen);
+		if(rxdatalen>0)
+		{
+			uint8_t *ptr =	sockOpt->receiveWindow+sockOpt->receiveLen;
+			memcpy(ptr, tcp->data, len);
+			sockOpt->receiveLen+=rxdatalen;
+			sockOpt->TheirSeq += rxdatalen;						// Increase their seq #, and ack the packet
+			// TODO: selectivly ack if a packet is out of order
+		}
+		
+		// Transmit ack and any data we have
 		PktEthernet *pkt = malloc(54 + sockOpt->sendLen);
 		memset(pkt, 0, 54 + sockOpt->sendLen);
 		
@@ -347,14 +365,16 @@ void ProcessPacket_TCP(uint16_t len, PktEthernet *eth, PktIP *ip, PktTCP *tcp)
 		tcpps.Protocol = 6;
 		tcpps.Length=SWAP_2(20+sockOpt->sendLen);
 
-
 		tcp->Checksum = checksum((uint8_t*)tcp, 20+sockOpt->sendLen, (uint8_t *)&tcpps);
 		
 		enc28j60PacketSend(54+sockOpt->sendLen, (uint8_t *)pkt);
-		//insert(&TCB, (void *)sockOpt);
-		//return sockOpt;
+		
+		free(pkt);
+
 		LogDebug(FacilityUser, PSTR("Ack Sent: %u"), 54+sockOpt->sendLen);
-		while(1){}
+		sockOpt->OurSeq+=sockOpt->sendLen;
+		sockOpt->sendLen=0;
+		//while(1){}
 	}
 }
 
@@ -408,6 +428,41 @@ TransmissionControlBlock *TCPConnect(uint8_t *dstIp, uint16_t dstPort)
 	enc28j60PacketSend(54, (uint8_t *)synPktFrame);
 	insert(&TCB, (void *)sockOpt);
 	return sockOpt;
+}
+
+// Open a TCP connection (as a client), this sets up our socket options, and
+void TCPClose(TransmissionControlBlock *sockOpt)
+{
+	uint8_t finPkt[60];
+	memset(&finPkt, 0, 60);
+	PktEthernet *synPktFrame = (PktEthernet*)&finPkt[0];
+	
+	EthBuildFrame(finPkt, dstmac);
+	synPktFrame->type = EthernetTypeIP;
+	PktIP *ip = IPBuildPacket(synPktFrame, sockOpt->RemoteIp, 6);
+	ip->TotalLength = SWAP_2(40);
+	ip->Checksum = checksum((uint8_t*)ip, 20, NULL);
+	PktTCP *tcp = (PktTCP*)&ip->data[0];
+	
+	tcp->SrcPort = SWAP_2(sockOpt->SrcPort);
+	tcp->DstPort = SWAP_2(sockOpt->DstPort);
+	tcp->Seq = swap_uint32(sockOpt->OurSeq);
+	tcp->Ack = 0;			// We do not send an ACK when ACK=0
+	tcp->DataOffset = 5;
+	tcp->FlagFIN = 1;		// FINs
+	tcp->WindowSize = SWAP_2(1300);
+	tcp->UrgentPointer = 0;
+
+	PktTCPPseudoHeader tcpps;
+	copyIP(ip->DstIp, tcpps.DstIp);
+	copyIP(ip->SrcIp, tcpps.SrcIp);
+	tcpps.Reserved=0;
+	tcpps.Protocol = 6;
+	tcpps.Length=SWAP_2(20);
+
+	tcp->Checksum = checksum((uint8_t*)tcp, 20, (uint8_t *)&tcpps);
+	
+	enc28j60PacketSend(54, (uint8_t *)synPktFrame);
 }
 
 #pragma endregion TCP

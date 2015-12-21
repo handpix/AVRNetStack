@@ -210,13 +210,14 @@ typedef struct TransmissionControlBlock {
 void ProcessPacket_TCP(uint16_t len, PktEthernet *eth, PktIP *ip, PktTCP *tcp);
 TransmissionControlBlock *TCPConnect(uint8_t *dstIp, uint16_t dstPort);
 void TCPSend(TransmissionControlBlock *sockOpt, uint8_t *data, uint16_t len);
+void TCPClose(TransmissionControlBlock *sockOpt);
 
 #pragma endregion TCP
 
 #pragma region Utilities
 
 uint16_t checksum(uint8_t *buf, uint16_t len, uint8_t *pseudoHeader);
-void SendSyslog(uint8_t f, uint8_t level, const uint8_t *file, int16_t line, const uint8_t *str, ...);
+void SendSyslog(uint8_t f, uint8_t level, const char *file, int16_t line, const char *str, ...);
 
 #pragma endregion Utilities
 

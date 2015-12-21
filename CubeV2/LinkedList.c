@@ -25,6 +25,7 @@ node *insert(node *list, void *data)
 	list = list->next;
 	list->data = data;
 	list->next = NULL;
+	return list->next;
 }
 
 node *find(node *list, void *key, findCallback findFunc)
