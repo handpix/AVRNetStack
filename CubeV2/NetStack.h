@@ -18,6 +18,11 @@
 
 #define MAXPACKET	1500
 
+extern volatile TickStats ChksumTicks;
+extern volatile TickStats ArpTicks;
+extern volatile TickStats ICMPTicks;
+extern volatile TickStats SyslogTicks;
+
 extern uint32_t RXEthernet;
 extern uint32_t RXIP;
 extern uint32_t RXICMP;

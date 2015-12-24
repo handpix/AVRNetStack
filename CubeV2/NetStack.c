@@ -15,12 +15,18 @@
 #include "enc28j60.h"
 #include "LinkedList.h"
 #include "NetStack.h"
+#include "CPUTime.h"
 
 uint8_t ipbcast[] = {255,255,255,255};
 uint8_t macaddr[] = {0x74,0xD3,0xDB,0x0A,0xD7,0x00};
 uint8_t bcast[]   = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 uint8_t ipaddr[]  = {192,168,43,100};
 uint8_t dstmac[]  = {0x00,0x24,0x9B,0x08,0x4E,0xD3};
+
+volatile TickStats ChksumTicks;
+volatile TickStats ArpTicks;
+volatile TickStats ICMPTicks;
+volatile TickStats SyslogTicks;
 
 uint32_t RXEthernet = 0;
 uint32_t RXIP = 0;
@@ -54,12 +60,17 @@ void CopyEthernetSrcToDst(PktEthernet *eth)
 #pragma region ARP
 void ProcessPacket_ARP(uint16_t len, PktEthernet *eth, PktArp *arp)
 {
+	uint64_t start;
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	{
+		start = GetTicks();
+	}
 	RXARP++;
 	RXARPOctets+=len;
 	// Ethernet -> IP, we do not handle other protocols
 	if(arp->HardwareType != 0x0100 || arp->ProtocolType!=0x0008)
 	{
-		return;
+		goto arpdone;
 	}
 
 	// This is a request, process it and see if it is for us
@@ -81,8 +92,16 @@ void ProcessPacket_ARP(uint16_t len, PktEthernet *eth, PktArp *arp)
 
 			enc28j60PacketSend(len, (uint8_t *)eth);
 
-			return;
+			goto arpdone;
 		}
+	}
+
+
+	arpdone:
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	{
+		ArpTicks.Ticks += (GetTicks() - start);
+		ArpTicks.Invokes++;
 	}
 }
 
@@ -167,24 +186,27 @@ void ProcessPacket_IP(uint16_t len, PktEthernet *eth, PktIP *ip)
 
 void ProcessPacket_ICMP(uint16_t len, PktEthernet *eth, PktIP *ip, PktICMP *icmp)
 {
+	uint64_t start;
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	{
+		start = GetTicks();
+	}
 	RXICMP++;
 	RXICMPOctets+=len;
 	if(icmp->Type==8)	// Echo Request
 	{
 		CopyEthernetSrcToDst(eth);
-
 		copyIP(ip->SrcIp, ip->DstIp);
 		copyIP(ipaddr, ip->SrcIp);
-		ip->Checksum = 0; // Checksum is computed with a 0 checksum
-		ip->Checksum = checksum((uint8_t*)ip, 20, NULL);
 
-		// We have an echo request. We change src -> dst in ICMP, IP and ETH frames, and reply
 		icmp->Type = 0;		// Echo reply
-		icmp->Code = 0;		// Echo reply
-		icmp->Checksum = 0;	// Checksum is computed with a 0 checksum
-		icmp->Checksum = checksum((uint8_t*)icmp, SWAP_2(ip->TotalLength) - 20, NULL);
-		
+		icmp->Checksum+=8;
 		enc28j60PacketSend(len, (uint8_t *)eth);
+	}
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	{
+		ICMPTicks.Ticks += (GetTicks() - start);
+		ICMPTicks.Invokes++;
 	}
 }
 
@@ -193,6 +215,11 @@ void ProcessPacket_ICMP(uint16_t len, PktEthernet *eth, PktIP *ip, PktICMP *icmp
 #pragma region SYSLOG
 void SendSyslog(uint8_t f, uint8_t level, const char *file, int16_t line, const char *fmt, ...)
 {
+	uint64_t start;
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	{
+		start = GetTicks();
+	}
 	uint8_t pri = f * 8 + level;
 	uint8_t logPkt[1024];
 	memset(&logPkt, 0, 1024);
@@ -225,6 +252,11 @@ void SendSyslog(uint8_t f, uint8_t level, const char *file, int16_t line, const 
 	ip->Checksum = checksum((uint8_t*)ip, 20, NULL);
 
 	enc28j60PacketSend(len+8+20+16, logPkt);
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	{
+		SyslogTicks.Ticks += (GetTicks() - start);
+		SyslogTicks.Invokes++;
+	}
 }
 #pragma endregion SYSLOG
 
@@ -471,6 +503,12 @@ void TCPClose(TransmissionControlBlock *sockOpt)
 
 uint16_t checksum(uint8_t *buf, uint16_t len, uint8_t *pseudoHeader)
 {
+	uint64_t start;
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	{
+		start = GetTicks();
+	}
+
 	uint32_t sum = 0;
 
 	if(pseudoHeader!=NULL)
@@ -501,7 +539,13 @@ uint16_t checksum(uint8_t *buf, uint16_t len, uint8_t *pseudoHeader)
 	}
 
 	// build 1's complement:
-	return SWAP_2(( (uint16_t) sum ^ 0xFFFF));
+	uint32_t ret = SWAP_2(( (uint16_t) sum ^ 0xFFFF));
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	{
+		ChksumTicks.Ticks += (GetTicks() - start);
+		ChksumTicks.Invokes++;
+	}
+	return ret;
 }
 
 #pragma endregion Utilities

@@ -45,10 +45,16 @@ void InitNetwork()
 ISR (TIMER3_OVF_vect)
 {
 	netTick++;
-	if(netTick % 122==0)
+	if(netTick % 1122==0)
 	{
-		LogInfo(FacilityUser, PSTR("TX [Tick: %lu / Calls: %lu])"), TXTicks.Ticks, TXTicks.Invokes);
-		//LogInfo(FacilityUser, PSTR("Network Timers (Tick: %lu)"), netTick);
+		LogInfo(FacilityUser, PSTR("----------------------------------------------"));
+		LogInfo(FacilityUser, PSTR("TX     [T: %lu / C: %lu / Avg: %lu])"), TXTicks.Ticks, TXTicks.Invokes, TXTicks.Ticks / TXTicks.Invokes);
+		LogInfo(FacilityUser, PSTR("RX     [T: %lu / C: %lu / Avg: %lu])"), RXTicks.Ticks, RXTicks.Invokes, RXTicks.Ticks/ RXTicks.Invokes);
+		LogInfo(FacilityUser, PSTR("Arp    [T: %lu / C: %lu / Avg: %lu])"), ArpTicks.Ticks, ArpTicks.Invokes, ArpTicks.Ticks/ ArpTicks.Invokes);
+		LogInfo(FacilityUser, PSTR("ICMP   [T: %lu / C: %lu / Avg: %lu])"), ICMPTicks.Ticks, ICMPTicks.Invokes, ICMPTicks.Ticks/ ICMPTicks.Invokes);
+		LogInfo(FacilityUser, PSTR("Chksum [T: %lu / C: %lu / Avg: %lu])"), ChksumTicks.Ticks, ChksumTicks.Invokes, ChksumTicks.Ticks / ChksumTicks.Invokes);
+		LogInfo(FacilityUser, PSTR("Syslog [T: %lu / C: %lu / Avg: %lu])"), SyslogTicks.Ticks, SyslogTicks.Invokes, SyslogTicks.Ticks / SyslogTicks.Invokes);
+		LogInfo(FacilityUser, PSTR("Total  [T: %lu])"), netTick<<16);
 	}
 	//
 	//PORTA ^= 1;

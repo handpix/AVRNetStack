@@ -27,6 +27,7 @@ extern volatile uint32_t TXPkts;
 extern volatile uint32_t RXOctets;
 extern volatile uint32_t TXOctets;
 extern volatile TickStats TXTicks;
+extern volatile TickStats RXTicks;
 
 // ENC28J60 Control Registers
 // Control register definitions are a combination of address,

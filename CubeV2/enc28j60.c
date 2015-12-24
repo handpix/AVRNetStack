@@ -22,11 +22,10 @@
 #include "util/atomic.h"
 
 volatile TickStats TXTicks;
+volatile TickStats RXTicks;
 
 static uint8_t Enc28j60Bank;
 static int16_t gNextPacketPtr;
-
-
 
 // SPI interface
 #define ENC28J60_CONTROL_PORT   PORTB
@@ -316,7 +315,7 @@ uint8_t enc28j60linkup(void)
 
 void enc28j60PacketSend(uint16_t len, uint8_t* packet)
 {
-	uint32_t start;
+	uint64_t start;
 	ATOMIC_BLOCK(ATOMIC_FORCEON)
 	{
 		start = GetTicks();
@@ -350,8 +349,7 @@ void enc28j60PacketSend(uint16_t len, uint8_t* packet)
 
 	ATOMIC_BLOCK(ATOMIC_FORCEON)
 	{
-		uint32_t end = GetTicks();
-		TXTicks.Ticks += (end - start);
+		TXTicks.Ticks += (GetTicks() - start);
 		TXTicks.Invokes++;
 	}
 }
@@ -372,6 +370,11 @@ uint8_t enc28j60hasRxPkt(void)
 // Returns: Packet length in bytes if a packet was retrieved, zero otherwise.
 uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t* packet)
 {
+	uint64_t start;
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	{
+		start = GetTicks();
+	}
 	uint16_t rxstat;
 	uint16_t len;
 	// check if a packet has been received and buffered
@@ -428,5 +431,11 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t* packet)
 	enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
 	RXPkts++;
 	RXOctets+=len;
+	ATOMIC_BLOCK(ATOMIC_FORCEON)
+	{
+		RXTicks.Ticks += (GetTicks() - start);
+		RXTicks.Invokes++;
+	}
+
 	return(len);
 }

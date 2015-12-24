@@ -8,9 +8,9 @@
 #include "CPUTime.h"
 #include "avr/interrupt.h"
 #include "util/atomic.h"
-volatile uint32_t netTick = 0;
+volatile uint64_t netTick = 0;
 
-uint32_t GetTicks()
+uint64_t GetTicks()
 {
-	return ((netTick<<16) & 0xffff0000) + TCNT3;
+	return ((netTick<<16) & 0xffffffffffff0000) + TCNT3;
 }
