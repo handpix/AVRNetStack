@@ -6,7 +6,7 @@
 */
 #include <avr/io.h>
 #include <stdint.h>
-#include <util/atomic.h>
+//#include <util/atomic.h>
 #ifndef CPUTIME_H_
 #define CPUTIME_H_
 

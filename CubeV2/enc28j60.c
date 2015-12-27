@@ -19,7 +19,7 @@
 #include "enc28j60.h"
 #include "util/delay.h"
 #include "cputime.h"
-#include "util/atomic.h"
+//#include "util/atomic.h"
 
 volatile TickStats TXTicks;
 volatile TickStats RXTicks;
@@ -315,10 +315,7 @@ uint8_t enc28j60linkup(void)
 void enc28j60PacketSend(uint16_t len, uint8_t* packet)
 {
 	uint64_t start;
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		start = GetTicks();
-	}
+	start = GetTicks();
 	PORTA |= (1<<3);
 	// Check no transmit in progress
 	while (enc28j60ReadOp(ENC28J60_READ_CTRL_REG, ECON1) & ECON1_TXRTS)
@@ -346,11 +343,8 @@ void enc28j60PacketSend(uint16_t len, uint8_t* packet)
 	TXOctets+=len;
 	PORTA &= ~(1<<3);
 
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		TXTicks.Ticks += (GetTicks() - start);
-		TXTicks.Invokes++;
-	}
+	TXTicks.Invokes++;
+	TXTicks.Ticks += (GetTicks() - start);
 }
 
 // just probe if there might be a packet
@@ -370,10 +364,7 @@ uint8_t enc28j60hasRxPkt(void)
 uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t* packet)
 {
 	uint64_t start;
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		start = GetTicks();
-	}
+	start = GetTicks();
 	uint16_t rxstat;
 	uint16_t len;
 	// check if a packet has been received and buffered
@@ -430,11 +421,9 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t* packet)
 	enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
 	RXPkts++;
 	RXOctets+=len;
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		RXTicks.Ticks += (GetTicks() - start);
-		RXTicks.Invokes++;
-	}
+
+	RXTicks.Invokes++;
+	RXTicks.Ticks += (GetTicks() - start);
 
 	return(len);
 }

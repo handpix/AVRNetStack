@@ -62,10 +62,7 @@ void CopyEthernetSrcToDst(PktEthernet *eth)
 void ProcessPacket_ARP(uint16_t len, PktEthernet *eth, PktArp *arp)
 {
 	uint64_t start;
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		start = GetTicks();
-	}
+	start = GetTicks();
 	RXARP++;
 	RXARPOctets+=len;
 	// Ethernet -> IP, we do not handle other protocols
@@ -97,11 +94,8 @@ void ProcessPacket_ARP(uint16_t len, PktEthernet *eth, PktArp *arp)
 	}
 
 	arpdone:
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		ArpTicks.Ticks += (GetTicks() - start);
-		ArpTicks.Invokes++;
-	}
+	ArpTicks.Ticks += (GetTicks() - start);
+	ArpTicks.Invokes++;
 }
 
 int SearchARPByMAC(ArpCacheEntry *search, uint8_t *key)
@@ -186,10 +180,7 @@ void ProcessPacket_IP(uint16_t len, PktEthernet *eth, PktIP *ip)
 void ProcessPacket_ICMP(uint16_t len, PktEthernet *eth, PktIP *ip, PktICMP *icmp)
 {
 	uint64_t start;
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		start = GetTicks();
-	}
+	start = GetTicks();
 	RXICMP++;
 	RXICMPOctets+=len;
 	if(icmp->Type==8)	// Echo Request
@@ -202,11 +193,8 @@ void ProcessPacket_ICMP(uint16_t len, PktEthernet *eth, PktIP *ip, PktICMP *icmp
 		icmp->Checksum+=8;
 		enc28j60PacketSend(len, (uint8_t *)eth);
 	}
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		ICMPTicks.Ticks += (GetTicks() - start);
-		ICMPTicks.Invokes++;
-	}
+	ICMPTicks.Ticks += (GetTicks() - start);
+	ICMPTicks.Invokes++;
 }
 
 #pragma endregion ICMP
@@ -215,10 +203,7 @@ void ProcessPacket_ICMP(uint16_t len, PktEthernet *eth, PktIP *ip, PktICMP *icmp
 void SendSyslog(uint8_t f, uint8_t level, const char *file, int16_t line, const char *fmt, ...)
 {
 	uint64_t start;
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		start = GetTicks();
-	}
+	start = GetTicks();
 	uint8_t pri = f * 8 + level;
 	uint8_t logPkt[1024];
 	memset(&logPkt, 0, 1024);
@@ -251,11 +236,8 @@ void SendSyslog(uint8_t f, uint8_t level, const char *file, int16_t line, const 
 	ip->Checksum = checksum((uint8_t*)ip, 20, NULL);
 
 	enc28j60PacketSend(len+8+20+16, logPkt);
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		SyslogTicks.Ticks += (GetTicks() - start);
-		SyslogTicks.Invokes++;
-	}
+	SyslogTicks.Ticks += (GetTicks() - start);
+	SyslogTicks.Invokes++;
 }
 #pragma endregion SYSLOG
 
@@ -503,10 +485,7 @@ void TCPClose(TransmissionControlBlock *sockOpt)
 uint16_t checksum(uint8_t *buf, uint16_t len, uint8_t *pseudoHeader)
 {
 	uint64_t start;
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		start = GetTicks();
-	}
+	start = GetTicks();
 
 	uint32_t sum = 0;
 
@@ -539,11 +518,8 @@ uint16_t checksum(uint8_t *buf, uint16_t len, uint8_t *pseudoHeader)
 
 	// build 1's complement:
 	uint32_t ret = SWAP_2(( (uint16_t) sum ^ 0xFFFF));
-	ATOMIC_BLOCK(ATOMIC_FORCEON)
-	{
-		ChksumTicks.Ticks += (GetTicks() - start);
-		ChksumTicks.Invokes++;
-	}
+	ChksumTicks.Ticks += (GetTicks() - start);
+	ChksumTicks.Invokes++;
 	return ret;
 }
 
