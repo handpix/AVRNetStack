@@ -183,7 +183,6 @@ void enc28j60clkout(uint8_t clk)
 }
 
 
-
 void enc28j60Init(uint8_t* macaddr)
 {
 	TXTicks.Invokes=0;

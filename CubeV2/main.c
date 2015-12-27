@@ -44,7 +44,7 @@ void InitNetwork()
 // We use Timer3 for our multiprocessing, tracking CPU Usage and timed events
 ISR (TIMER3_OVF_vect)
 {
-	netTick++;
+	netTick+=65536;
 	if(netTick % 1122==0)
 	{
 		LogInfo(FacilityUser, PSTR("----------------------------------------------"));
@@ -54,9 +54,9 @@ ISR (TIMER3_OVF_vect)
 		LogInfo(FacilityUser, PSTR("ICMP   [T: %lu / C: %lu / Avg: %lu])"), ICMPTicks.Ticks, ICMPTicks.Invokes, ICMPTicks.Ticks/ ICMPTicks.Invokes);
 		LogInfo(FacilityUser, PSTR("Chksum [T: %lu / C: %lu / Avg: %lu])"), ChksumTicks.Ticks, ChksumTicks.Invokes, ChksumTicks.Ticks / ChksumTicks.Invokes);
 		LogInfo(FacilityUser, PSTR("Syslog [T: %lu / C: %lu / Avg: %lu])"), SyslogTicks.Ticks, SyslogTicks.Invokes, SyslogTicks.Ticks / SyslogTicks.Invokes);
-		LogInfo(FacilityUser, PSTR("Total  [T: %lu])"), netTick<<16);
+		LogInfo(FacilityUser, PSTR("Total  [T: %lu])"), netTick);
 	}
-	//
+
 	//PORTA ^= 1;
 	//
 	//node *list = &ARPCache;
@@ -127,20 +127,6 @@ int main (void)
 	TCPClose(clientSocket);
 
 	while(1){
-		//uint32_t startticks=0;
-		//ATOMIC_BLOCK(ATOMIC_FORCEON)
-		//{
-		//startticks = GetTicks();
-		//}
-		//_delay_ms(2000);
-		//PORTA ^= 1;
-		////LogInfo(FacilityUser, PSTR("TX [T:%lu/C:%lu])"), TXTicks.Ticks, TXTicks.Invokes);
-		//uint32_t endticks=0;
-		//ATOMIC_BLOCK(ATOMIC_FORCEON)
-		//{
-		//endticks = GetTicks();
-		//}
-		//LogInfo(FacilityUser, PSTR("Network Timers (st:%lu,et:%lu) - %lu"), startticks, endticks, endticks-startticks);
 	}
 
 }
@@ -150,4 +136,3 @@ void led_init( void )
 	PORTA = 0x00 ; // All outputs to 0.
 	DDRA = 0xff ; // All outputs.
 }
-

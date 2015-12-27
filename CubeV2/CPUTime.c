@@ -12,5 +12,5 @@ volatile uint64_t netTick = 0;
 
 uint64_t GetTicks()
 {
-	return ((netTick<<16) & 0xffffffffffff0000) + TCNT3;
+	return netTick | TCNT3;
 }

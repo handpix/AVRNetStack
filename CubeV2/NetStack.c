@@ -49,6 +49,7 @@ void EthBuildFrame(PktEthernet *eth, uint8_t *dst)
 	copyMac(macaddr, eth->SrcMacAddress);
 	copyMac(dst, eth->DstMacAddress);
 }
+
 void CopyEthernetSrcToDst(PktEthernet *eth)
 {
 	copyMac(eth->SrcMacAddress, eth->DstMacAddress);	// Reply to the source of our packet
@@ -81,7 +82,6 @@ void ProcessPacket_ARP(uint16_t len, PktEthernet *eth, PktArp *arp)
 		{
 			AddARPCache(&arp->SenderMacAddress, &arp->SenderIpAddress);
 			CopyEthernetSrcToDst(eth);
-			arp->ProtocolType = 0x0008;
 			arp->Opcode=0x0200;
 
 			copyIP(arp->SenderIpAddress, arp->TargetIpAddress);
@@ -95,7 +95,6 @@ void ProcessPacket_ARP(uint16_t len, PktEthernet *eth, PktArp *arp)
 			goto arpdone;
 		}
 	}
-
 
 	arpdone:
 	ATOMIC_BLOCK(ATOMIC_FORCEON)
